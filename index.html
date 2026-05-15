@@ -999,9 +999,16 @@
             if (!targetId) return;
 
             if (typeof closeProductPage === 'function') closeProductPage();
-            if (typeof toggleMobileMenu === 'function') {
-                const links = document.getElementById('nav-links');
-                if (links && links.classList.contains('active')) toggleMobileMenu();
+
+            // Close mobile menu DIRECTLY via DOM — avoids async history.back() race condition
+            const _navLinks   = document.getElementById('nav-links');
+            const _mobToggle  = document.getElementById('mobile-toggle');
+            const _navOverlay = document.getElementById('nav-overlay');
+            const _menuWasOpen = _navLinks && _navLinks.classList.contains('active');
+            if (_menuWasOpen) {
+                _navLinks.classList.remove('active');
+                if (_mobToggle)  _mobToggle.classList.remove('active');
+                if (_navOverlay) _navOverlay.classList.remove('show');
             }
 
             if (route === 'contact') {
@@ -1013,7 +1020,12 @@
 
             updateActiveNavLink(route);
             const newUrl = route === 'home' ? '/' : `/${route}`;
-            history.pushState({ route }, '', newUrl);
+            // Replace menu's history entry so back-button skips the now-closed menu
+            if (_menuWasOpen && history.state && history.state.overlay === 'menu') {
+                history.replaceState({ route }, '', newUrl);
+            } else {
+                history.pushState({ route }, '', newUrl);
+            }
         }
 
         function updateActiveNavLink(route) {
@@ -1366,11 +1378,19 @@
             });
             if (!valid) { showToast('Please fill all required fields'); return; }
 
-            // Validate Phone with intl-tel-input
+            // Validate Phone — use iti when loaded, fallback to 10-digit check
             const phoneEl = document.getElementById('co-phone');
-            if (window.iti && !window.iti.isValidNumber()) {
-                phoneEl.classList.add('error');
-                showToast('Enter a valid phone number'); return;
+            if (window.iti) {
+                if (!window.iti.isValidNumber()) {
+                    phoneEl.classList.add('error');
+                    showToast('Enter a valid 10-digit phone number'); return;
+                }
+            } else {
+                const rawPhone = phoneEl.value.replace(/\D/g, '');
+                if (rawPhone.length !== 10) {
+                    phoneEl.classList.add('error');
+                    showToast('Enter a valid 10-digit phone number'); return;
+                }
             }
 
             const pin = document.getElementById('co-pin');
@@ -1537,7 +1557,8 @@
         // Initialize International Phone Input
         function initPhoneInput() {
             const input = document.querySelector("#co-phone");
-            if (input && window.intlTelInput) {
+            if (!input) return;
+            if (window.intlTelInput) {
                 window.iti = window.intlTelInput(input, {
                     initialCountry: "in",
                     separateDialCode: true,
@@ -1545,6 +1566,17 @@
                     utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.4/build/js/utils.js",
                 });
             }
+            // Enforce numeric-only and 10-digit cap regardless of iti state
+            input.addEventListener('input', function () {
+                const cleaned = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+                if (this.value !== cleaned) this.value = cleaned;
+            });
+            // Trigger on paste as well
+            input.addEventListener('paste', function (e) {
+                setTimeout(() => {
+                    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+                }, 0);
+            });
         }
         // Small delay to ensure DOM and script are ready
         setTimeout(initPhoneInput, 500);
@@ -1761,7 +1793,8 @@
                 <div class="checkout-form-group">
                     <label class="checkout-form-label" for="co-phone">Phone Number *</label>
                     <input class="checkout-form-input" id="co-phone" type="tel" placeholder="10-digit mobile number"
-                        autocomplete="tel" maxlength="10">
+                        autocomplete="tel" maxlength="15" inputmode="numeric"
+                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)">
                 </div>
                 <div class="checkout-form-group">
                     <label class="checkout-form-label" for="co-address">Full Address *</label>
