@@ -1408,10 +1408,11 @@
             document.getElementById('checkout-step2').style.display = 'none';
             document.getElementById('checkout-step1').style.display = 'block';
         }
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHv9gZGog3V-pRHnK1TN-I19OU1B1m-MVhl2CQmTe18xi5p-xmPwid88CuC5SBFkDT/exec';
 
-        async function proceedToPayment() {
+async function proceedToPayment() {
     const btn = document.querySelector('.checkout-btn-pay');
-    if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving order…'; }
 
     const p = ALL_PRODUCTS.find(x => String(x.id) === String(_coPid));
     const selectedSize = document.getElementById('selected-size')?.textContent || 'M';
@@ -1433,18 +1434,15 @@
     };
 
     try {
-        const res = await fetch('/api/orders', {
+        await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(orderData),
         });
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-            const data = await res.json();
-            if (data.success) console.log('✅ Order saved:', data.orderId);
-        }
+        console.log('✅ Order sent to Google Sheets');
     } catch (err) {
-        console.warn('⚠️ Order log skipped (no backend):', err.message);
+        console.warn('⚠️ Order log failed:', err.message);
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -1455,7 +1453,6 @@
     closeCheckout();
     window.open('https://rzp.io/rzp/J1q7OOg', '_blank');
 }
-
         // ── MISC ──────────────────────────────────────────────
         function showToast(msg) {
             const t = document.getElementById('toast');
