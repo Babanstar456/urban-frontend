@@ -1410,49 +1410,51 @@
         }
 
         async function proceedToPayment() {
-            const btn = document.querySelector('.checkout-btn-pay');
-            btn.disabled = true;
-            btn.textContent = 'Saving order…';
+    const btn = document.querySelector('.checkout-btn-pay');
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
 
-            const p = ALL_PRODUCTS.find(x => String(x.id) === String(_coPid));
-            const selectedSize = document.getElementById('selected-size')?.textContent || 'M';
+    const p = ALL_PRODUCTS.find(x => String(x.id) === String(_coPid));
+    const selectedSize = document.getElementById('selected-size')?.textContent || 'M';
 
-            const orderData = {
-                customerName: document.getElementById('co-fullname').value.trim(),
-                phone: window.iti ? window.iti.getNumber() : document.getElementById('co-phone').value.trim(),
-                address: {
-                    street: document.getElementById('co-address').value.trim(),
-                    city: document.getElementById('co-city').value.trim(),
-                    state: document.getElementById('co-state').value.trim(),
-                    pin: document.getElementById('co-pin').value.trim(),
-                },
-                productName: p ? p.name : 'Unknown Product',
-                size: selectedSize,
-                quantity: 1,
-                total: 599,
-                paymentMethod: 'Razorpay',
-            };
+    const orderData = {
+        customerName: document.getElementById('co-fullname').value.trim(),
+        phone: window.iti ? window.iti.getNumber() : document.getElementById('co-phone').value.trim(),
+        address: {
+            street: document.getElementById('co-address').value.trim(),
+            city: document.getElementById('co-city').value.trim(),
+            state: document.getElementById('co-state').value.trim(),
+            pin: document.getElementById('co-pin').value.trim(),
+        },
+        productName: p ? p.name : 'Unknown Product',
+        size: selectedSize,
+        quantity: 1,
+        total: 599,
+        paymentMethod: 'Razorpay',
+    };
 
-            try {
-                const res = await fetch('/api/orders', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData),
-                });
-                const data = await res.json();
-                if (!data.success) throw new Error(data.error || 'Order failed');
-                console.log('✅ Order saved:', data.orderId);
-            } catch (err) {
-                console.error('Order save failed:', err.message);
-                // Still proceed to payment even if DB save fails
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '&#128274; PROCEED TO PAYMENT &mdash; ₹599';
-            }
-
-            closeCheckout();
-            window.open('https://rzp.io/rzp/J1q7OOg', '_blank');
+    try {
+        const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data.success) console.log('✅ Order saved:', data.orderId);
         }
+    } catch (err) {
+        console.warn('⚠️ Order log skipped (no backend):', err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '&#128274; PROCEED TO PAYMENT &mdash; ₹599';
+        }
+    }
+
+    closeCheckout();
+    window.open('https://rzp.io/rzp/J1q7OOg', '_blank');
+}
 
         // ── MISC ──────────────────────────────────────────────
         function showToast(msg) {
