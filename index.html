@@ -1433,6 +1433,10 @@ async function proceedToPayment() {
         paymentMethod: 'Razorpay',
     };
 
+    // Open Razorpay FIRST before any async work — avoids popup blocker
+    const payWin = window.open('https://rzp.io/rzp/J1q7OOg', '_blank');
+
+    // Then save order in background — never blocks payment
     try {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
@@ -1450,8 +1454,9 @@ async function proceedToPayment() {
         }
     }
 
-    closeCheckout();
-    window.open('https://rzp.io/rzp/J1q7OOg', '_blank');
+    // Close checkout overlay after everything
+    document.getElementById('checkout-overlay-bg').classList.remove('open');
+    document.body.style.overflow = '';
 }
         // ── MISC ──────────────────────────────────────────────
         function showToast(msg) {
